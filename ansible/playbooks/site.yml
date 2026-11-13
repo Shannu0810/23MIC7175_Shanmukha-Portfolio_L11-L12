@@ -22,15 +22,11 @@
       debug:
         msg: "Detected Docker: {{ docker_check.stdout }}"
 
-    - name: Verify backend .env file exists
-      stat:
-        path: "{{ project_root }}/server/.env"
-      register: env_file_stat
-
-    - name: Alert if .env file is missing
-      fail:
-        msg: "Please create server/.env from server/.env.example before running Ansible."
-      when: not env_file_stat.stat.exists
+    - name: Ensure backend .env file exists
+      copy:
+        src: "{{ project_root }}/server/.env.example"
+        dest: "{{ project_root }}/server/.env"
+        force: no
 
     - name: Build and launch Docker Compose stack
       command: docker compose up -d --build
