@@ -1,67 +1,156 @@
-# Portfolio - Mogili Sai Shanmukha Vardhan
+# Mogili Sai Shanmukha Vardhan - Portfolio & DevOps Architecture
 
-A premium, modern, fully responsive personal portfolio website built with HTML5, CSS3, JavaScript, and Bootstrap 5.
+An enterprise-grade, modern personal portfolio website and full DevOps architecture showcase featuring **Google OAuth 2.0 Single Sign-On**, **RFC 6238 TOTP Multi-Factor Authentication (2-Step Verification)**, **Docker**, **Minikube (Kubernetes)**, **Terraform (IaC)**, **Ansible**, **Prometheus & Grafana Observability**, **ELK Stack Centralized Logging**, and **Atlassian Jira REST API Integration**.
 
-## 🚀 Features
+---
 
-- **Dark Navy Theme** with Electric Blue Accent
-- **Glassmorphism** design with blur effects
-- **Floating Particle** background animation
-- **Animated Gradient** background
-- **Typing Animation** for roles
-- **Scroll Progress Bar**
-- **Scroll-to-Top Button**
-- **Ripple Button Effects**
-- **AOS Scroll Animations**
-- **Fully Responsive** (Desktop, Tablet, Mobile)
-- **Smooth Scrolling** navigation
-- **Contact Form** with validation
-- **Loading Screen** with spinner animation
+## 🌟 Architecture Overview
 
-## 📂 Project Structure
+```mermaid
+flowchart TD
+    subgraph Client ["Client / Recruiter Browser"]
+        Browser["Web Browser"]
+    end
 
+    subgraph IngressLayer ["Ingress & Reverse Proxy"]
+        Ingress["Nginx (Port 80 / 8080)"]
+    end
+
+    subgraph CoreServices ["Core Application (Minikube / Docker)"]
+        Frontend["Portfolio Web Resume"]
+        AuthBackend["Auth, MFA & Telemetry API (Node.js :5000)"]
+    end
+
+    subgraph Security ["Identity & Access (Zero Trust)"]
+        GoogleOAuth["Google Cloud OAuth 2.0"]
+        TOTP["RFC 6238 TOTP (Google Authenticator)"]
+    end
+
+    subgraph Observability ["Observability Stack"]
+        Prometheus["Prometheus (:9090)"]
+        Grafana["Grafana Dashboards (:3000)"]
+    end
+
+    subgraph Logging ["Centralized Logging (ELK)"]
+        Filebeat["Filebeat"]
+        Logstash["Logstash (:5044)"]
+        Elasticsearch["Elasticsearch (:9200)"]
+        Kibana["Kibana (:5601)"]
+    end
+
+    subgraph Automation ["DevOps & Integrations"]
+        Terraform["Terraform (IaC)"]
+        Ansible["Ansible (Playbooks)"]
+        Jira["Jira REST API (Issue Automation)"]
+    end
+
+    Browser -->|HTTP| Ingress
+    Ingress -->|Static UI| Frontend
+    Ingress -->|/api/*| AuthBackend
+    AuthBackend --> GoogleOAuth
+    AuthBackend --> TOTP
+    AuthBackend --> Prometheus
+    Prometheus --> Grafana
+    AuthBackend -->|Structured Logs| Filebeat
+    Filebeat --> Logstash --> Elasticsearch --> Kibana
+    Frontend -->|Contact Form| AuthBackend --> Jira
+    Terraform -.->|Provisions| CoreServices
+    Ansible -.->|Configures & Deploys| CoreServices
 ```
-portfolio/
-├── index.html          # Main HTML file
-├── css/
-│   └── style.css       # All styles
-├── js/
-│   └── main.js         # JavaScript (animations, particles, effects)
-├── assets/
-│   └── resume.pdf      # Resume (place yours here)
-└── README.md           # This file
+
+---
+
+## 🚀 Key Features
+
+1. **Secured Web Resume (Zero-Trust Gate)**:
+   - **Step 1: Google OAuth 2.0 Login**: Sign in securely using your Google account.
+   - **Step 2: Two-Step Verification (MFA TOTP)**: Generates a QR code scannable with Google Authenticator or Microsoft Authenticator for 6-digit one-time code verification.
+   - **Step 3: Verified Web Resume**: Unlocks the official verified resume, tech stack timeline, and embedded live DevOps telemetry metrics.
+   - **Recruiter Sandbox Mode**: 1-click test mode for instant recruiter evaluation without needing whitelist configuration.
+2. **Docker & Container Orchestration**:
+   - Multi-stage Docker build for backend and optimized Nginx container with reverse-proxying.
+   - Full `docker-compose.yml` orchestrating the entire stack.
+3. **Observability (Grafana + Prometheus)**:
+   - Real-time Prometheus metrics scraping (`/metrics`) for HTTP requests, response latency, auth success/failure rates, and active sessions.
+   - Pre-provisioned Grafana dashboard (`portfolio-devops-01`) listening on port `3000`.
+4. **Centralized Logging (ELK Stack)**:
+   - Structured JSON logs with Winston (`logs/portfolio.log` and `logs/security-audit.log`).
+   - Filebeat, Logstash pipeline, Elasticsearch indexing, and Kibana visualizations.
+5. **Kubernetes on Minikube**:
+   - Ready-to-apply manifests: `k8s/` (`namespace`, `configmap`, `secrets`, `deployments`, `services`, `ingress`, `monitoring`).
+   - One-click script: `k8s/deploy-minikube.ps1`.
+6. **Terraform Infrastructure as Code (IaC)**:
+   - Declarative Kubernetes infrastructure provisioning via `terraform/main.tf` and `terraform.tfvars`.
+7. **Ansible Automation**:
+   - Automated host validation, container building, health checks, and deployment via `ansible/playbooks/site.yml`.
+8. **Jira Cloud REST API Integration**:
+   - Contact inquiries submitted through the website automatically create tasks/issues directly on your Jira board.
+
+---
+
+## 🛠️ Quick Start Guide
+
+### Option 1: Docker Compose (All-in-One Local Stack)
+```bash
+# Start frontend, auth backend, Prometheus, and Grafana:
+docker compose up -d --build
+
+# Optional: To include ELK Stack (Elasticsearch, Logstash, Kibana):
+docker compose --profile logging up -d
+```
+- **Portfolio Website**: [http://localhost:8080](http://localhost:8080)
+- **Grafana Dashboard**: [http://localhost:3000](http://localhost:3000) (User: `admin`, Pass: `admin`)
+- **Prometheus Metrics**: [http://localhost:9090](http://localhost:9090)
+- **Auth & Health API**: [http://localhost:5000/health](http://localhost:5000/health)
+
+---
+
+### Option 2: Minikube (Kubernetes Cluster)
+```powershell
+# Run the 1-click PowerShell deployment script:
+.\k8s\deploy-minikube.ps1
+```
+Or manually:
+```bash
+kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-configmap.yaml
+kubectl apply -f k8s/02-secrets.yaml
+kubectl apply -f k8s/03-backend-deployment.yaml
+kubectl apply -f k8s/04-backend-service.yaml
+kubectl apply -f k8s/05-frontend-deployment.yaml
+kubectl apply -f k8s/06-frontend-service.yaml
+kubectl apply -f k8s/07-ingress.yaml
+kubectl apply -f k8s/monitoring/
 ```
 
-## 🛠️ Tech Stack
+---
 
-- HTML5
-- CSS3
-- JavaScript (Vanilla)
-- Bootstrap 5
-- AOS (Animate On Scroll)
-- Font Awesome 6
-- Canvas API (Particles)
+### Option 3: Terraform (IaC Provisioning)
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply -auto-approve
+```
 
-## 📦 How to Run
+---
 
-### Option 1: XAMPP (Recommended)
-1. Copy the `portfolio` folder into `htdocs` directory of XAMPP
-2. Start Apache from XAMPP Control Panel
-3. Open browser and go to `http://localhost/portfolio`
+### Option 4: Ansible Deployment Playbook
+```bash
+cd ansible
+ansible-playbook -i inventory.ini playbooks/site.yml
+```
 
-### Option 2: Direct Browser
-Simply open `index.html` in any modern browser.
+---
 
-### Option 3: Live Server (VS Code)
-Open the project in VS Code and use the Live Server extension.
+## 🔐 Credentials & Secrets Configured
 
-## 🔗 Links
+The backend and Kubernetes secrets are pre-configured with your Google OAuth 2.0 credentials:
+- **Client ID**: `914232904778-nd0e667q2quue2rvupnkco5gc50bh0d.apps.googleusercontent.com`
+- **Authorized Origin**: `http://localhost:8080`, `http://localhost:5000`
+- **Redirect URI**: `http://localhost:5000/api/auth/google/callback`
 
-- **GitHub**: [github.com/Shannu0810](https://github.com/Shannu0810)
-- **LinkedIn**: [sai-shanmukha-vardhan-mogili](https://www.linkedin.com/in/sai-shanmukha-vardhan-mogili-11036a291)
-- **Email**: shannumogili@gmail.com
+---
 
 ## 📄 License
-
 © 2026 Mogili Sai Shanmukha Vardhan. All Rights Reserved.
-

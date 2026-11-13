@@ -1,0 +1,72 @@
+---
+- name: Deploy Portfolio DevOps & Observability Stack
+  hosts: portfolio_hosts
+  gather_facts: yes
+  become: no
+
+  vars:
+    project_root: "{{ playbook_dir }}/../"
+    frontend_port: 8080
+    backend_port: 5000
+    grafana_port: 3000
+    prometheus_port: 9090
+
+  tasks:
+    - name: Verify Docker is installed and accessible
+      command: docker --version
+      register: docker_check
+      failed_when: docker_check.rc != 0
+      changed_when: false
+
+    - name: Display Docker version
+      debug:
+        msg: "Detected Docker: {{ docker_check.stdout }}"
+
+    - name: Verify backend .env file exists
+      stat:
+        path: "{{ project_root }}/server/.env"
+      register: env_file_stat
+
+    - name: Alert if .env file is missing
+      fail:
+        msg: "Please create server/.env from server/.env.example before running Ansible."
+      when: not env_file_stat.stat.exists
+
+    - name: Build and launch Docker Compose stack
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ project_root }}"
+      register: compose_up
+      changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"
+
+    - name: Wait for backend health probe to report UP
+      uri:
+        url: "http://localhost:{{ backend_port }}/health"
+        method: GET
+        status_code: 200
+      register: backend_health
+      retries: 10
+      delay: 3
+      until: backend_health.status == 200
+
+    - name: Wait for Prometheus metrics endpoint
+      uri:
+        url: "http://localhost:{{ backend_port }}/metrics"
+        method: GET
+        status_code: 200
+      register: metrics_check
+      retries: 5
+      delay: 2
+
+    - name: Display Deployment Summary
+      debug:
+        msg:
+          - "===================================================="
+          - "  Portfolio DevOps Stack Deployed Successfully!       "
+          - "===================================================="
+          - "Frontend Website:     http://localhost:{{ frontend_port }}"
+          - "Auth & Telemetry API: http://localhost:{{ backend_port }}"
+          - "Grafana Dashboards:   http://localhost:{{ grafana_port }} (user: admin / pass: admin)"
+          - "Prometheus Metrics:   http://localhost:{{ prometheus_port }}"
+          - "Backend Health:       {{ backend_health.json.status }}"
+          - "===================================================="

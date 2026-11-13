@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +7,6 @@
     <meta name="keywords" content="Java, Full Stack, Cloud Computing, Portfolio, Developer">
     <meta name="author" content="Mogili Sai Shanmukha Vardhan">
     <title>Mogili Sai Shanmukha Vardhan | Portfolio</title>
-
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome 6 -->
@@ -18,6 +17,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- Auth & MFA CSS -->
+    <link rel="stylesheet" href="css/auth.css">
+    <!-- Google Identity Services (OAuth 2.0) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- ===== SESSION GUARD - redirect to login if not authenticated ===== -->
+    <script>
+    (function() {
+        var token = localStorage.getItem('portfolio_jwt');
+        var userStr = localStorage.getItem('portfolio_user');
+        if (!token || !userStr) { window.location.replace('login.html'); return; }
+        try {
+            var parts = token.split('.');
+            if (parts.length !== 3) throw new Error('bad token');
+            var payload = JSON.parse(atob(parts[1]));
+            if (!payload.mfaVerified || payload.exp * 1000 < Date.now()) {
+                localStorage.removeItem('portfolio_jwt');
+                localStorage.removeItem('portfolio_user');
+                window.location.replace('login.html');
+            }
+        } catch(e) {
+            localStorage.removeItem('portfolio_jwt');
+            localStorage.removeItem('portfolio_user');
+            window.location.replace('login.html');
+        }
+    })();
+    </script>
 </head>
 <body>
 
@@ -50,6 +76,9 @@
                     <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
                 </ul>
                 <a href="#contact" class="btn btn-hire">Hire Me</a>
+                <button class="auth-nav-btn open-auth-modal-btn ms-lg-3" id="navAuthBtn">
+                    <i class="fas fa-lock me-1"></i>Web Resume (MFA)
+                </button>
             </div>
         </div>
     </nav>
@@ -75,8 +104,11 @@
                     </p>
                     <div class="hero-buttons">
                         <a href="#contact" class="btn btn-primary-glow ripple-btn">Contact Me</a>
+                        <button class="btn btn-outline-glow ripple-btn open-auth-modal-btn">
+                            <i class="fas fa-shield-alt me-2"></i>Verified Resume (MFA)
+                        </button>
                         <a href="assets/resume.pdf" class="btn btn-outline-glow ripple-btn" download>
-                            <i class="fas fa-download me-2"></i>Download Resume
+                            <i class="fas fa-download me-2"></i>PDF Resume
                         </a>
                     </div>
                     <div class="hero-social mt-4">
@@ -513,6 +545,153 @@
         <i class="fas fa-chevron-up"></i>
     </button>
 
+
+    <!-- ======================== AUTH & MFA RESUME MODAL ======================== -->
+    <div id="authModalOverlay" class="auth-modal-overlay">
+        <div class="auth-modal-card">
+            <button class="auth-close-btn" id="authCloseBtn" aria-label="Close modal">&times;</button>
+            
+            <div class="auth-header">
+                <span class="auth-badge"><i class="fas fa-shield-halved"></i> Zero-Trust Resume Gate</span>
+                <h3 class="auth-title">Secured Web Resume</h3>
+                <p class="auth-subtitle">Protected by Google OAuth 2.0 & RFC 6238 TOTP Multi-Factor Authentication</p>
+            </div>
+
+            <!-- Stepper Progress -->
+            <div class="auth-stepper">
+                <div class="step-pill active" id="pillStep1">
+                    <i class="fab fa-google"></i> Step 1: OAuth Login
+                </div>
+                <div class="step-pill" id="pillStep2">
+                    <i class="fas fa-qrcode"></i> Step 2: 2-Step MFA
+                </div>
+                <div class="step-pill" id="pillStep3">
+                    <i class="fas fa-check-circle"></i> Step 3: Verified Resume
+                </div>
+            </div>
+
+            <div id="authAlertBox" style="display: none;"></div>
+
+            <!-- STEP 1: LOGIN -->
+            <div class="auth-step-view active" id="authStep1">
+                <div class="google-btn-wrapper">
+                    <p class="text-secondary small text-center mb-2">Sign in using your Google Account to begin two-step verification:</p>
+                    <div id="google-signin-btn"></div>
+                </div>
+
+                <div class="divider-text">OR FOR RECRUITERS & EVALUATORS</div>
+
+                <button type="button" class="btn-demo-login" id="demoLoginBtn">
+                    <i class="fas fa-user-astronaut"></i>
+                    <span>Quick Recruiter Demo Login (1-Click Test)</span>
+                </button>
+                <p class="text-center text-muted small mt-2">
+                    Instant evaluator sandbox with pre-configured TOTP MFA flow.
+                </p>
+            </div>
+
+            <!-- STEP 2: MFA TOTP -->
+            <div class="auth-step-view" id="authStep2">
+                <div class="mfa-qr-container">
+                    <p class="small text-secondary text-center mb-3">
+                        <i class="fas fa-mobile-screen-button me-1"></i> Scan this QR code using <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong>:
+                    </p>
+                    <img id="mfaQrCodeImg" class="mfa-qr-img" alt="MFA QR Code">
+                    
+                    <div class="mfa-secret-box">
+                        <span>Key:</span>
+                        <span id="mfaSecretKeyText">GENERATING...</span>
+                    </div>
+
+                    <div id="demoMfaNotice" style="display: none; width: 100%;"></div>
+                </div>
+
+                <form id="mfaForm">
+                    <label class="d-block text-center text-secondary small mb-2">
+                        Enter 6-Digit Authenticator Code
+                    </label>
+                    <div class="mfa-input-group">
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required autofocus>
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required>
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required>
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required>
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required>
+                        <input type="text" maxlength="1" class="mfa-digit-input" pattern="[0-9]" inputmode="numeric" required>
+                    </div>
+
+                    <button type="submit" class="mfa-submit-btn">
+                        <span id="authSubmittingSpinner" class="spinner-border spinner-border-sm me-2" style="display: none;"></span>
+                        <i class="fas fa-key me-1"></i> Verify Two-Step Code
+                    </button>
+                </form>
+            </div>
+
+            <!-- STEP 3: VERIFIED RESUME & TELEMETRY -->
+            <div class="auth-step-view" id="authStep3">
+                <div class="verified-header-bar">
+                    <div class="verified-user-info">
+                        <span class="verified-badge-pill"><i class="fas fa-badge-check me-1"></i> Verified Session Active</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" id="authSignOutBtn">
+                        <i class="fas fa-sign-out-alt me-1"></i> Sign Out
+                    </button>
+                </div>
+
+                <div class="resume-tabs">
+                    <button class="resume-tab-btn active" data-tab="tab-resume-data">
+                        <i class="fas fa-file-alt me-1"></i> Verified Resume
+                    </button>
+                    <button class="resume-tab-btn" data-tab="tab-devops-stats">
+                        <i class="fas fa-chart-line me-1"></i> Live Observability
+                    </button>
+                </div>
+
+                <!-- Tab 1: Resume Data -->
+                <div class="resume-tab-pane active" id="tab-resume-data">
+                    <div id="verifiedResumeContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-info" role="status"></div>
+                            <p class="small text-muted mt-2">Decrypting verified profile...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Live Observability & Telemetry -->
+                <div class="resume-tab-pane" id="tab-devops-stats" style="display: none;">
+                    <div class="telemetry-card">
+                        <h6 style="color: #00b4d8; font-weight: 600;"><i class="fas fa-satellite-dish me-2"></i>Live Service Health & Telemetry</h6>
+                        <div class="telemetry-grid">
+                            <div class="telemetry-stat">
+                                <div class="telemetry-stat-val" id="telemetryStatus">Active</div>
+                                <div class="telemetry-stat-label">Health Probe</div>
+                            </div>
+                            <div class="telemetry-stat">
+                                <div class="telemetry-stat-val" id="telemetryUptime">--</div>
+                                <div class="telemetry-stat-label">Backend Uptime</div>
+                            </div>
+                            <div class="telemetry-stat">
+                                <div class="telemetry-stat-val" id="telemetryMemory">--</div>
+                                <div class="telemetry-stat-label">Heap Memory</div>
+                            </div>
+                            <div class="telemetry-stat">
+                                <div class="telemetry-stat-val" id="telemetrySessions">1</div>
+                                <div class="telemetry-stat-label">Active Sessions</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-2 rounded" style="background: rgba(0,0,0,0.3); font-size: 0.8rem; color: #94a3b8;">
+                            <div><i class="fas fa-chart-area text-info me-2"></i><strong>Prometheus:</strong> Exporting metrics at <code>/metrics</code></div>
+                            <div class="mt-1"><i class="fas fa-tachometer-alt text-warning me-2"></i><strong>Grafana:</strong> Observability dashboard listening on port <code>3000</code></div>
+                            <div class="mt-1"><i class="fas fa-cubes text-primary me-2"></i><strong>Cluster:</strong> Minikube / Kubernetes ready</div>
+                            <div class="mt-1"><i class="fas fa-stream text-danger me-2"></i><strong>ELK Stack:</strong> Security audit logs indexed to Elasticsearch</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- ======================== SCRIPTS ======================== -->
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -520,6 +699,8 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <!-- Custom JS -->
     <script src="js/main.js"></script>
+    <!-- Auth & MFA JS -->
+    <script src="js/auth.js"></script>
 </body>
 </html>
 

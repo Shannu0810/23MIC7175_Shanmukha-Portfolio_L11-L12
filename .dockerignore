@@ -1,0 +1,8 @@
+.git
+.gitignore
+server/node_modules
+server/logs
+ADDA_2026_Fall
+terraform/.terraform
+terraform/terraform.tfstate*
+*.log

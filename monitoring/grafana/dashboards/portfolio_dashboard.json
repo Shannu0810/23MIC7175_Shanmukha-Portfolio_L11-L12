@@ -1,0 +1,130 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Application Overview & Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "title": "Total HTTP Requests",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(portfolio_http_requests_total)", "legendFormat": "Requests", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "mappings": [] }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "title": "Verified Resume Views",
+      "type": "stat",
+      "targets": [
+        { "expr": "portfolio_resume_views_total", "legendFormat": "Views", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "title": "MFA Verifications",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(portfolio_mfa_verifications_total{status=\"success\"})", "legendFormat": "MFA Verified", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "id": 5,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "title": "Jira Inquiries Logged",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(portfolio_contact_submissions_total)", "legendFormat": "Inquiries", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 6,
+      "title": "Request Rate (RPS by Route)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (route) (rate(portfolio_http_requests_total[1m]))", "legendFormat": "{{route}}", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 7,
+      "title": "HTTP Status Breakdown",
+      "type": "piechart",
+      "targets": [
+        { "expr": "sum by (status_code) (portfolio_http_requests_total)", "legendFormat": "HTTP {{status_code}}", "refId": "A" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 8,
+      "title": "Security & Identity Telemetry",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 15 },
+      "id": 9,
+      "title": "Logins by Provider (Google vs Demo)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (provider) (portfolio_auth_attempts_total)", "legendFormat": "{{provider}}", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 15 },
+      "id": 10,
+      "title": "MFA Verification Success vs Failure",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (status) (portfolio_mfa_verifications_total)", "legendFormat": "MFA {{status}}", "refId": "A" }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["portfolio", "devops", "observability", "prometheus"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
+  "timezone": "browser",
+  "title": "Portfolio Observability & Security Dashboard",
+  "uid": "portfolio-devops-01",
+  "version": 1
+}

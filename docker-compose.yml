@@ -1,0 +1,147 @@
+services:
+  # ====================================================================
+  # 1. FRONTEND WEB RESUME (NGINX + REVERSE PROXY)
+  # ====================================================================
+  portfolio-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portfolio-frontend
+    ports:
+      - "${FRONTEND_PORT:-8085}:80"
+    restart: unless-stopped
+    depends_on:
+      portfolio-backend:
+        condition: service_healthy
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 2. AUTH, MFA & TELEMETRY BACKEND (NODE.JS / EXPRESS)
+  # ====================================================================
+  portfolio-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: portfolio-backend
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 3. OBSERVABILITY: PROMETHEUS (METRICS SCRAPING)
+  # ====================================================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: portfolio-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: unless-stopped
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 4. OBSERVABILITY: GRAFANA (PRE-BUILT DASHBOARDS)
+  # ====================================================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: portfolio-grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 5. CENTRALIZED LOGGING: ELASTICSEARCH (PROFILE: logging)
+  # ====================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: portfolio-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    profiles:
+      - logging
+      - all
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 6. CENTRALIZED LOGGING: LOGSTASH (PROFILE: logging)
+  # ====================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: portfolio-logstash
+    volumes:
+      - ./logging/logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "5044:5044"
+      - "50000:50000"
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+      - all
+    networks:
+      - portfolio-network
+
+  # ====================================================================
+  # 7. CENTRALIZED LOGGING: KIBANA (PROFILE: logging)
+  # ====================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: portfolio-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+      - all
+    networks:
+      - portfolio-network
+
+networks:
+  portfolio-network:
+    driver: bridge
