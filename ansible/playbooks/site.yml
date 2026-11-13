@@ -5,11 +5,11 @@
   become: no
 
   vars:
-    project_root: "{{ playbook_dir }}/.."
-    frontend_port: 8080
+    project_root: "{{ playbook_dir }}/../.."
+    frontend_port: 8085
     backend_port: 5000
-    grafana_port: 3000
-    prometheus_port: 9090
+    grafana_port: 3001
+    prometheus_port: 9091
 
   tasks:
     - name: Verify Docker is installed and accessible
@@ -26,6 +26,7 @@
       copy:
         src: "{{ project_root }}/server/.env.example"
         dest: "{{ project_root }}/server/.env"
+        remote_src: yes
         force: no
 
     - name: Build and launch Docker Compose stack
